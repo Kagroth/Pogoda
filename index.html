@@ -1,0 +1,170 @@
+<html>
+	<head>
+		<script src="./js/jquery-3.3.1.min.js"></script>
+		<style>
+			#container 
+			{
+				position: relative;
+				width: 750px;
+				margin: 0 auto;
+			}
+			
+			#tooltip
+			{
+				width: 10px;
+				height: 20px;
+				display: inline-block;
+				text-align: center;
+				border: 1px solid;	
+				border-radius: 50%;				
+			}
+			
+			#tempsLabel
+			{
+				position: absolute;
+					left: -100px;
+					top: 50px;
+			}
+			
+			#hoursLabel
+			{
+				position: absolute;
+					bottom: -10px;
+					right: -20px;
+			}
+			
+			canvas{
+				margin-top: 10px;
+				border: solid 1px;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="container">
+			<div id="tooltip" title="Wprowadz date 5 lub 6 kwietnia 2018">?</div>
+			<input type="date"/>
+			<input type="button" value="Rysuj"/>
+			<div id="tempsLabel">Temperatury</div>
+			<div id="hoursLabel">Godziny</div>
+			<canvas id="canvas" width="700" height="600"></canvas>
+		</div>
+	</body>
+	<script>
+		$(document).ready(() => {
+			var drawButton = document.querySelector("input[type=button]");
+			drawButton.addEventListener("click", getDataFromServer, false);
+		});
+		
+		function getDataFromServer()
+		{
+			var input = document.querySelector("input[type=date]");
+			var val = input.value;
+			
+			console.log(val);
+			
+			$.ajax({
+				method: "GET",
+				url: "php/odczyt_dzien.php",
+				data: {dzien: val},
+				cache: false
+			}).done(function(msg){console.log(msg); parseTemps(msg)});
+		}
+		
+		// funkcja obrabiajaca string postaci temp|temp|temp
+		function parseTemps(temps)
+		{
+			console.log(temps);
+			if(temps === "Brak wynikow" || temps === "Wybierz date")
+			{
+				drawWarning(temps);
+				return;
+			}
+			
+			temps = temps.split("|");			
+			temps.pop(); // usuwam ostatni, pusty element
+			console.log(temps);
+			
+			drawPlot(temps);
+		}
+		
+		// funkcja rysujaca wykres
+		function drawPlot(temps)
+		{
+			var canvas = document.querySelector("#canvas");
+			var ctx = canvas.getContext("2d")
+			var width = canvas.width;
+			var height = canvas.height;
+			
+			ctx.clearRect(0, 0, width, height);
+			ctx.font = "12px Arial";
+			
+			console.log(height);
+			
+			//mapowanie elementow String na Int
+			temps = temps.map((x) => {
+				return parseInt(x)
+			});
+			
+			var max = min = temps[0];
+			
+			for(var x = 1; x < temps.length; x++)
+			{
+				if(temps[x] > max)
+					max = temps[x];
+					
+				if(temps[x] < min)
+					min = temps[x];	
+				
+				console.log(max);
+				console.log(min);
+			}
+			
+			numOfValues = max - min + 1;
+			
+			console.log(numOfValues);
+			
+			offsetX = width / 25;
+			widthPerValue = (width - 2 * offsetX) / 23;
+			heightPerVlaue = height / numOfValues;
+			
+			console.log(Math.floor(heightPerVlaue));
+			
+			// rysowanie wykresu + labelki osi X
+			ctx.beginPath();
+			ctx.strokeStyle = "blue";
+			for(var x = 0; x < temps.length; x++)
+			{
+				posX = x * widthPerValue + offsetX;
+				posY = height - ((temps[x] - min) * heightPerVlaue);
+				ctx.lineTo(posX, posY);
+				
+				ctx.strokeText(x, posX, height-2);
+				console.log(posX + ", " + posY);
+			}
+			ctx.stroke();
+			
+			// labelki osi Y
+			var tempLabels = [];
+			
+			for(var x = min; x <= max; x++)
+			{
+				ctx.strokeText(x, 0, height - ((x - min) * heightPerVlaue));
+			}			
+			
+			temps = tempLabels = max = min = null;
+		}
+		
+		function drawWarning(text)
+		{
+			var canvas = document.querySelector("#canvas");
+			var ctx = canvas.getContext("2d")
+			var width = canvas.width;
+			var height = canvas.height;
+			
+			ctx.clearRect(0, 0, width, height);
+			
+			ctx.font = "16px Arial";
+			ctx.fillText(text, width/2 - 20, height/2);
+		}
+	</script>
+</html>
